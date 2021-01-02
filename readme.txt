@@ -1,0 +1,2 @@
+Cribbage Squares
+a solitaires game I created over 30 yrs aago. includes a prg to create a SEQ file for user names. A machine language shuffle routine. A full game program with hi-scrores using SEQ and REL files. A pruned down version with embedded shuffler into the BASIC.
