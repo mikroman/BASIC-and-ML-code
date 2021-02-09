@@ -1,0 +1,333 @@
+00001  0000             SCREEN_RAM = $FB        ;SCREENRAM POINTER TO PLOT SEGMENT
+00002  0001             CINV       = $0314            ;IRQ VECTOR
+00003  0001             CLOCK      = $C000           ;WHERE THE IRQ ROUTINE IS MOVED TO
+00004  0001             GETINPUT   = $ABF9        ;ROM=PRINT ? AND INPUT INTO BUFFER AREA ($0200)
+00005  0001             IRQNORMAL  = $EA31       ;USUAL C64 IRQ ADDRESS
+00006  0001             HIBASE     = $0288          ;PAGE NUMBER OF SCREEN
+00007  0001             INPUTBUFFER = $0200     ;INPUT BUFFER LOCATION
+00008  0001             MOVEBASE   = $0900        ;CODE THAT GETS RELOCATED
+00009  0001             MOVEFROM   = $FB          ;ZERO PAGE ADDRESSES FOR
+00010  0001             MOVETO     = $FD            ;INDEXED ADDRESSING MODE
+00011  0001             PRINTSTRING = $AB1E     ;ROM=PRINT STRING ENDING IN ZERO BYTE
+00012  0001             
+00013  0001             
+00014  0001             
+00015  0001             *=$0801    ; 10 SYS2560 (BASIC LOADER) $0A00
+00016  0801             
+00017  0801  0B 08 0A              BYTE $0B,$08,$0A,$00,$9E,$32,$35,$36,$30,$00,$00,$00
+00018  080D             
+00019  080D             
+00020  080D             
+00021  080D             *=$0900    ;THIS IS OUR MAIN CODE THAT GETS MOVED TO $C000
+00022  0900             
+00023  0900             RELOCATE   $C000  ;ASSEMBLES OBJECT CODE FOR $C000 SLOT/NOT $0900
+00024  0900             
+00025  0900             JIFFY      ;CLOCK DECIMAL DIGIT STORAGE
+00026  0900  00                    BYTE0
+00027  0901             SECOND
+00028  0901  00                    BYTE0
+00029  0902             SECONDS
+00030  0902  00                    BYTE0
+00031  0903             MINUTE
+00032  0903  00                    BYTE0
+00033  0904             MINUTES
+00034  0904  00                    BYTE0
+00035  0905             HOUR
+00036  0905  00                    BYTE0
+00037  0906             HOURS
+00038  0906  00                    BYTE0
+00039  0907             
+00040  0907             
+00041  0907             ENTRY
+00042  0907  20 0B C0              JSR INTIALIZE_CLOCK
+00043  090A  60                    RTS             ;SET IRQ TO POINT TO OUR ROUTINE
+00044  090B             
+00045  090B             
+00046  090B             
+00047  090B             INTIALIZE_CLOCK ;REROUTE IRQ TO OUR ROUTINE
+00048  090B  78                    SEI             ;1ST WE DISABLE ANY INTERRUPTS
+00049  090C  A9 17                 LDA #<UPDATECLOCK
+00050  090E  8D 14 03              STA CINV        ;SET NEW IRQ VECTOR
+00051  0911  A9 C0                 LDA #>UPDATECLOCK
+00052  0913  8D 15 03              STA CINV+1      ;SET NEW IRQ VECTOR TO 'UPDATECLOCK'
+00053  0916  60                    RTS
+00054  0917             
+00055  0917             
+00056  0917             UPDATECLOCK ;NEW IRQ ENTRY IS HERE
+00057  0917  EE 00 C0              INC JIFFY       ;INCREASE OUR JIFFY
+00058  091A  AD 00 C0              LDA JIFFY
+00059  091D  C9 3C                 CMP#$3C         ;IS IT 60?
+00060  091F  D0 5F                 BNE DISPLAY     ;NO? WE'RE DONE
+00061  0921             
+00062  0921  A9 00                 LDA#$00         ;YES
+00063  0923  8D 00 C0              STA JIFFY       ;RESET JIFFY AND
+00064  0926             
+00065  0926  EE 01 C0              INC SECOND      ;INCREASE SECONDS
+00066  0929  AD 01 C0              LDA SECOND
+00067  092C  C9 0A                 CMP#$0A         ;IS IT 10?
+00068  092E  D0 50                 BNE DISPLAY     ;NO? WE'RE DONE
+00069  0930             
+00070  0930  A9 00                 LDA#$00         ;RESET SECOND AND
+00071  0932  8D 01 C0              STA SECOND      ;STORE IT THEN
+00072  0935             
+00073  0935  EE 02 C0              INC SECONDS     ;INCREASE SECONDS
+00074  0938  AD 02 C0              LDA SECONDS
+00075  093B  C9 06                 CMP#$06         ;60 SECONDS?
+00076  093D  D0 41                 BNE DISPLAY     ;NO? WE'RE DONE
+00077  093F             
+00078  093F  A9 00                 LDA#$00         ;RESET SECONDS AND
+00079  0941  8D 02 C0              STA SECONDS     ;STORE IT THEN
+00080  0944             
+00081  0944  EE 03 C0              INC MINUTE      ;INCREASE MINUTE
+00082  0947  AD 03 C0              LDA MINUTE
+00083  094A  C9 0A                 CMP#$0A         ;10 MINUTES?
+00084  094C  D0 32                 BNE DISPLAY
+00085  094E             
+00086  094E  A9 00                 LDA#$00         ;RESET
+00087  0950  8D 03 C0              STA MINUTE
+00088  0953             
+00089  0953  EE 04 C0              INC MINUTES
+00090  0956  AD 04 C0              LDA MINUTES
+00091  0959  C9 06                 CMP#$06         ;60 MINUTES?
+00092  095B  D0 23                 BNE DISPLAY
+00093  095D             
+00094  095D  A9 00                 LDA#$00         ;RESET
+00095  095F  8D 04 C0              STA MINUTES
+00096  0962             
+00097  0962  EE 05 C0              INC HOUR
+00098  0965  AD 05 C0              LDA HOUR
+00099  0968  C9 0A                 CMP#$0A         ;10 HOURS?
+00100  096A  D0 14                 BNE DISPLAY
+00101  096C             
+00102  096C  A9 00                 LDA#$00         ;RESET
+00103  096E  8D 05 C0              STA HOUR
+00104  0971             
+00105  0971  EE 06 C0              INC HOURS
+00106  0974  AD 06 C0              LDA HOURS
+00107  0977  C9 18                 CMP#$18         ;24 HOURS YET?
+00108  0979  D0 05                 BNE DISPLAY     ;NO
+00109  097B             
+00110  097B  A9 00                 LDA#$00         ;RESET HOURS
+00111  097D  8D 06 C0              STA HOURS
+00112  0980             
+00113  0980             DISPLAY
+00114  0980  AD 88 02              LDA HIBASE       ;CURRENT SCREEN PAGE NUMBER
+00115  0983  85 FC                 STA SCREEN_RAM+1 ;INTITIALIZE SCREEN PTR INTO ($FB)
+00116  0985  A9 00                 LDA #$00
+00117  0987  85 FB                 STA SCREEN_RAM
+00118  0989  8D A8 C1              STA WORK3       ;AND RESET WORK INDEX3
+00119  098C             
+00120  098C  A2 06                 LDX #$06        ;OUTER LOOP FROM 6 TO 1 DIGITS
+00121  098E             L1
+00122  098E  8E A7 C1              STX WORK2       ;CURRENT_GET
+00123  0991  18                    CLC             ;CLEAR CARRY BEFORE ADDING
+00124  0992  BD 00 C0              LDA JIFFY,X     ;CURRENT DIGIT
+00125  0995  0A                    ASL             ;X2
+00126  0996  8D A6 C1              STA WORK1       ;STORE INTERMEDIATE VALUE
+00127  0999  0A                    ASL             ;X4
+00128  099A  6D A6 C1              ADC WORK1       ;ADD TO 6X NOW
+00129  099D  8D A6 C1              STA WORK1       ;STORE IT
+00130  09A0  AA                    TAX             ;MOVE TO X INDEX
+00131  09A1  A0 06                 LDY#$06         ;INNER LOOP 6 TIMES
+00132  09A3             L2
+00133  09A3  8C A8 C1              STY WORK3       ;SAVE INNER LOOP INDEX
+00134  09A6  A0 00                 LDY #$00        ;INDEX TO CURRENT TILE
+00135  09A8  BD A9 0A              LDA CLOCKTAB,X  ;GET A SEGMENT
+00136  09AB  91 FB                 STA (SCREEN_RAM),Y
+00137  09AD  E8                    INX             ;PRINT IT AND INCREASE INDEX
+00138  09AE  BD A9 0A              LDA CLOCKTAB,X  ;GET NEXT SEGMENT
+00139  09B1  C8                    INY
+00140  09B2  91 FB                 STA (SCREEN_RAM),Y;PRINT IT
+00141  09B4  18                    CLC
+00142  09B5  A5 FB                 LDA SCREEN_RAM
+00143  09B7  69 28                 ADC #$28        ;ADD FORTY TO SCREEN POINTER
+00144  09B9  85 FB                 STA SCREEN_RAM  ;AND STORE IT
+00145  09BB  A5 FC                 LDA SCREEN_RAM+1
+00146  09BD  69 00                 ADC #$00        ;MUST ADD THE CARRY BIT
+00147  09BF  85 FC                 STA SCREEN_RAM+1
+00148  09C1  E8                    INX             ;INC CHAR INDEX
+00149  09C2  AC A8 C1              LDY WORK3       ;INNER LOOP
+00150  09C5  88                    DEY
+00151  09C6  88                    DEY
+00152  09C7  D0 DA                 BNE L2          ;MORE? BRANCH TO L2
+00153  09C9  98                    TYA             ;Y IS NOW #$00
+00154  09CA  8D A6 C1              STA WORK1       ;RESET STORE
+00155  09CD  38                    SEC
+00156  09CE  A5 FB                 LDA SCREEN_RAM  ;MOVE THE POINTER
+00157  09D0  E9 76                 SBC #$76        ;BACK TO TOP OF SCREEN
+00158  09D2  85 FB                 STA SCREEN_RAM  ;INTO THE NEXT COLUMN
+00159  09D4  A5 FC                 LDA SCREEN_RAM+1
+00160  09D6  E9 00                 SBC #$00
+00161  09D8  85 FC                 STA SCREEN_RAM+1
+00162  09DA  AE A7 C1              LDX WORK2       ;OUTER LOOP
+00163  09DD  CA                    DEX
+00164  09DE  D0 AE                 BNE L1          ;MORE DIGITS? JUMP TO L1
+00165  09E0  4C 31 EA              JMP IRQNORMAL   ;DONE/RESUME IRQ
+00166  09E3             
+00167  09E3             
+00168  09E3             
+00169  09E3             
+00170  09E3             
+00171  09E3             
+00172  09E3             *=$0A00
+00173  0A00             
+00174  0A00             
+00175  0A00             LOCATE     ;MEMORY MOVE $0900... TO $C000...
+00176  0A00  A9 C0                 LDA #>CLOCK
+00177  0A02  85 FE                 STA MOVETO+1    ;TO ADDRESS HB
+00178  0A04  A9 09                 LDA #>MOVEBASE
+00179  0A06  85 FC                 STA MOVEFROM+1  ;FROM ADDRESS HB
+00180  0A08  A9 00                 LDA #<MOVEBASE
+00181  0A0A  85 FB                 STA MOVEFROM    ;TO ADDRESS LB
+00182  0A0C  A9 00                 LDA #<CLOCK
+00183  0A0E  85 FD                 STA MOVETO      ;FROM ADDRESS LB
+00184  0A10  A2 01                 LDX #$01        ;WE WILL MOVE TWO PAGES
+00185  0A12  A0 00                 LDY #$00        ;LOOP VARIABLE
+00186  0A14             
+00187  0A14             L3
+00188  0A14  B1 FB                 LDA(MOVEFROM),Y ;FROM ADDRESS
+00189  0A16  91 FD                 STA(MOVETO),Y   ;TO ADDRESS
+00190  0A18  C8                    INY
+00191  0A19  D0 F9                 BNE L3          ;INNER LOOP
+00192  0A1B  E6 FD                 INC MOVETO      ;INCREASE HIGH BYTES
+00193  0A1D  E6 FB                 INC MOVEFROM
+00194  0A1F  CA                    DEX             ;DECREASE PAGE LOOP
+00195  0A20  10 F2                 BPL L3          ;MOVE ANOTHER PAGE IF POSITIVE
+00196  0A22             
+00197  0A22             
+00198  0A22             GET_TIME_INPUT ;ASK USER FOR THE TIME
+00199  0A22  A0 0A                 LDY #>TIME      ;DEFAULT TIME STRING
+00200  0A24  A9 95                 LDA #<TIME
+00201  0A26  20 1E AB              JSR PRINTSTRING ;PRINT DEFAULT TIME
+00202  0A29  20 F9 AB              JSR GETINPUT    ;ROM=RECEIVE INPUT INTO BUFFER
+00203  0A2C             
+00204  0A2C  A2 00                 LDX#$00         ;VERIFY THE TIME
+00205  0A2E  BD 00 02              LDA INPUTBUFFER,X       ;H
+00206  0A31  30 EF                 BMI GET_TIME_INPUT      ;IS IT <0
+00207  0A33  C9 33                 CMP #$33                ;LEGAL 1ST DIGIT?
+00208  0A35  B0 EB                 BCS GET_TIME_INPUT      ;BSC BRANCH IF >=
+00209  0A37             
+00210  0A37  E8                    INX
+00211  0A38  BD 00 02              LDA INPUTBUFFER,X       ;H
+00212  0A3B  30 E5                 BMI GET_TIME_INPUT
+00213  0A3D  C9 3A                 CMP #$3A                ; IS IT > 9?
+00214  0A3F  B0 E1                 BCS GET_TIME_INPUT
+00215  0A41             
+00216  0A41  E8                    INX
+00217  0A42  BD 00 02              LDA INPUTBUFFER,X       ;M
+00218  0A45  30 DB                 BMI GET_TIME_INPUT
+00219  0A47  C9 36                 CMP #$36                ;< 6
+00220  0A49  B0 D7                 BCS GET_TIME_INPUT
+00221  0A4B  C9 3A                 CMP #$3A                ; IS IT > 9?
+00222  0A4D  B0 D3                 BCS GET_TIME_INPUT
+00223  0A4F             
+00224  0A4F  E8                    INX
+00225  0A50  BD 00 02              LDA INPUTBUFFER,X       ;M
+00226  0A53  30 CD                 BMI GET_TIME_INPUT
+00227  0A55  C9 3A                 CMP #$3A                ; IS IT > 9?
+00228  0A57  B0 C9                 BCS GET_TIME_INPUT
+00229  0A59             
+00230  0A59  E8                    INX
+00231  0A5A  BD 00 02              LDA INPUTBUFFER,X       ;S
+00232  0A5D  30 C3                 BMI GET_TIME_INPUT
+00233  0A5F  C9 36                 CMP #$36                ;< 6
+00234  0A61  B0 BF                 BCS GET_TIME_INPUT
+00235  0A63  C9 3A                 CMP #$3A                ; IS IT > 9?
+00236  0A65  B0 BB                 BCS GET_TIME_INPUT
+00237  0A67             
+00238  0A67  E8                    INX
+00239  0A68  BD 00 02              LDA INPUTBUFFER,X       ;S
+00240  0A6B  30 B5                 BMI GET_TIME_INPUT
+00241  0A6D  C9 3A                 CMP #$3A                ; IS IT > 9?
+00242  0A6F  B0 B1                 BCS GET_TIME_INPUT
+00243  0A71             
+00244  0A71  A2 00                 LDX #$00
+00245  0A73  BD 00 02              LDA INPUTBUFFER,X       ;VERIFY HOURS ARE <24
+00246  0A76  C9 32                 CMP #$32
+00247  0A78  90 08                 BCC ISOK
+00248  0A7A  E8                    INX
+00249  0A7B  BD 00 02              LDA INPUTBUFFER,X
+00250  0A7E  C9 34                 CMP #$34
+00251  0A80  B0 A0                 BCS GET_TIME_INPUT
+00252  0A82             ISOK       ;INPUT IS OK
+00253  0A82  A2 00                 LDX #$00
+00254  0A84  A0 06                 LDY #$06
+00255  0A86             GETDIGIT
+00256  0A86  BD 00 02              LDA INPUTBUFFER,X
+00257  0A89  29 0F                 AND #$0F        ;GET DIGIT/MASK OFF PETSCII TO OBTAIN NUMBER
+00258  0A8B  99 00 C0              STA CLOCK,Y     ;STORE INTO CLOCK STORAGE AREA
+00259  0A8E  E8                    INX
+00260  0A8F  88                    DEY             ;MORE?
+00261  0A90  D0 F4                 BNE GETDIGIT    ;GET MORE IF Y>0
+00262  0A92  4C 07 09              JMP ENTRY       ;ELSE INITIALIZE THE CLOCK
+00263  0A95             
+00264  0A95             TIME       ;DEFAULT TIME STRING (142700)
+00265  0A95  20 20 31              BYTE $20,$20,$31,$34,$32,$37,$30,$30,$9D,$9D,$9D,$9D,$9D,$9D,$9D,$9D,$00
+00266  0AA6             
+00267  0AA6             
+00268  0AA6             WORK1      ;TEMP STORAGE AREA
+00269  0AA6  00                    BYTE0
+00270  0AA7             WORK2
+00271  0AA7  00                    BYTE0
+00272  0AA8             WORK3
+00273  0AA8  00                    BYTE0
+00274  0AA9             
+00275  0AA9             CLOCKTAB   ;6 EACH, SEGMENT SCREENCODES FOR DIGITS 0-9
+00276  0AA9                        ;PLACED LEFT TO RIGHT/TOP TO BOTTOM
+00277  0AA9  64 20 65              BYTE 100,32,101,101,76,101
+00278  0AAF  20 20 20              BYTE 32,32,32,101,32,101
+00279  0AB5  64 20 64              BYTE 100,32,100,101,76,32
+00280  0ABB  64 20 64              BYTE 100,32,100,101,100,101
+00281  0AC1  20 20 4C              BYTE 32,32,76,101,32,101
+00282  0AC7  64 20 4C              BYTE 100,32,76,32,100,101
+00283  0ACD  64 20 4C              BYTE 100,32,76,32,76,101
+00284  0AD3  64 20 65              BYTE 100,32,101,101,32,101
+00285  0AD9  64 20 4C              BYTE 100,32,76,101,76,101
+00286  0ADF  64 20 4C              BYTE 100,32,76,101,100,101
+00287  0AE5             
+
+******* 23 Label(s) *******
+clocktab = $0AA9 
+display = $0980 46848
+entry = $0907 46848
+get_time_input = $0A22 
+getdigit = $0A86 
+hour = $0905 46848
+hours = $0906 46848
+intialize_clock = $090B 46848
+isok = $0A82 
+jiffy = $0900 46848
+l1 = $098E 46848
+l2 = $09A3 46848
+l3 = $0A14 
+locate = $0A00 
+minute = $0903 46848
+minutes = $0904 46848
+second = $0901 46848
+seconds = $0902 46848
+time = $0A95 
+updateclock = $0917 46848
+work1 = $0AA6 
+work2 = $0AA7 
+work3 = $0AA8 
+
+******* 1 Unused label(s) *******
+locate
+
+******* 12 Variable(s) *******
+CINV  = $0314
+clock  = $C000
+getinput  = $ABF9
+HIBASE  = $0288
+inputbuffer  = $0200
+IRQnormal  = $EA31
+movebase  = $0900
+movefrom  = $00FB
+moveto  = $00FD
+printstring  = $AB1E
+screen_ram  = $00FB
+tgt_c64  = $0001
+******* 2 Unused variables(s) *******
+inputbuffer
+tgt_c64
+
