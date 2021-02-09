@@ -5,4 +5,4 @@
 50 forx=0to5
 60 poke2310-x,val(mid$(h$,x+1,1))
 70 next
-80 sys2311
+80 sys2560
